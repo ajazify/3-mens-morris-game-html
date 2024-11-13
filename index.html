@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Three Men's Morris</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            overscroll-behavior: none;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            width: min(90vmin, 500px);
+            transition: all 0.3s ease;
+        }
+
+        .game-container.green-turn {
+            box-shadow: 0 8px 32px 0 rgba(0, 255, 0, 0.37);
+            border: 1px solid rgba(0, 255, 0, 0.18);
+        }
+
+        .game-container.red-turn {
+            box-shadow: 0 8px 32px 0 rgba(255, 0, 0, 0.37);
+            border: 1px solid rgba(255, 0, 0, 0.18);
+        }
+
+        .board-container {
+            width: 100%;
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        .square {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border: 3px solid #4a4a4a;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .line {
+            position: absolute;
+            background: #4a4a4a;
+        }
+
+        .horizontal {
+            width: 100%;
+            height: 3px;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .vertical {
+            height: 100%;
+            width: 3px;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .diagonal {
+            width: 141.4%;
+            height: 3px;
+            top: 50%;
+            left: -20.7%;
+            transform-origin: center;
+        }
+
+        .diagonal.d1 { transform: translateY(-50%) rotate(45deg); }
+        .diagonal.d2 { transform: translateY(-50%) rotate(-45deg); }
+
+        .circle {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #808080;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .circle.selected {
+            transform: translate(-50%, -50%) scale(1.2);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        .circle.green-player {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+        }
+
+        .circle.red-player {
+            background: linear-gradient(145deg, #ff6b6b, #ff4444);
+        }
+
+        .stones-container {
+            display: flex;
+            gap: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+            min-height: 50px;
+        }
+
+        .stone {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .stone.red-stone {
+            background: linear-gradient(145deg, #ff6b6b, #ff4444);
+        }
+
+        .stone.green-stone {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            animation: modalPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .modal-content {
+            margin-bottom: 20px;
+        }
+
+        .winner-text {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: white;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-button {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-button:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-button.primary {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+        }
+
+        .modal-button.secondary {
+            background: linear-gradient(145deg, #ff6b6b, #ff4444);
+        }
+
+        .circle[data-position="0"] { top: 0%; left: 0%; }
+        .circle[data-position="1"] { top: 0%; left: 50%; }
+        .circle[data-position="2"] { top: 0%; left: 100%; }
+        .circle[data-position="3"] { top: 50%; left: 0%; }
+        .circle[data-position="4"] { top: 50%; left: 50%; }
+        .circle[data-position="5"] { top: 50%; left: 100%; }
+        .circle[data-position="6"] { top: 100%; left: 0%; }
+        .circle[data-position="7"] { top: 100%; left: 50%; }
+        .circle[data-position="8"] { top: 100%; left: 100%; }
+
+        @keyframes modalPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes celebrate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .celebration {
+            position: absolute;
+            pointer-events: none;
+            animation: celebrate 0.5s ease infinite;
+            font-size: 40px;
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 15px;
+                gap: 10px;
+            }
+            .circle, .stone {
+                width: 25px;
+                height: 25px;
+            }
+            .stones-container {
+                gap: 10px;
+                padding: 8px;
+            }
+        }
+
+        @media (hover: none) {
+            .circle, .stone {
+                cursor: default;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="stones-container" id="red-stones-container">
+            <div class="stone red-stone"></div>
+            <div class="stone red-stone"></div>
+            <div class="stone red-stone"></div>
+        </div>
+
+        <div class="board-container">
+            <div class="square">
+                <div class="line horizontal"></div>
+                <div class="line vertical"></div>
+                <div class="line diagonal d1"></div>
+                <div class="line diagonal d2"></div>
+                <div class="circle empty" data-position="0"></div>
+                <div class="circle empty" data-position="1"></div>
+                <div class="circle empty" data-position="2"></div>
+                <div class="circle empty" data-position="3"></div>
+                <div class="circle empty" data-position="4"></div>
+                <div class="circle empty" data-position="5"></div>
+                <div class="circle empty" data-position="6"></div>
+                <div class="circle empty" data-position="7"></div>
+                <div class="circle empty" data-position="8"></div>
+            </div>
+        </div>
+
+        <div class="stones-container" id="green-stones-container">
+            <div class="stone green-stone"></div>
+            <div class="stone green-stone"></div>
+            <div class="stone green-stone"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay">
+        <div class="modal">
+            <div class="modal-content">
+                <div class="winner-text"></div>
+            </div>
+            <button class="modal-button primary" onclick="restartGame()">Play Again</button>
+            <!-- <div class="modal-buttons">
+                <button class="modal-button secondary" onclick="closeModal()">Close</button>
+            </div> -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let currentPlayer = 'green';
+            let greenStonesLeft = 3;
+            let redStonesLeft = 3;
+            let gamePhase = 'placing';
+            let selectedCircle = null;
+            let gameEnded = false;
+
+            const winningCombinations = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Horizontal
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Vertical
+                [0, 4, 8], [2, 4, 6] // Diagonal
+            ];
+
+            const validMoves = {
+                0: [1, 3, 4],
+                1: [0, 2, 4],
+                2: [1, 4, 5],
+                3: [0, 4, 6],
+                4: [0, 1, 2, 3, 5, 6, 7, 8],
+                5: [2, 4, 8],
+                6: [3, 4, 7],
+                7: [6, 4, 8],
+                8: [5, 4, 7]
+            };
+
+            function createCelebrationElement() {
+                const emojis = ['🎉', '🎊', '✨', '🌟', '💫', '🏆'];
+                const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                const element = document.createElement('div');
+                element.className = 'celebration';
+                element.textContent = emoji;
+                element.style.left = Math.random() * 100 + 'vw';
+                element.style.top = Math.random() * 100 + 'vh';
+                document.body.appendChild(element);
+                setTimeout(() => element.remove(), 2000);
+            }
+
+            function showWinnerModal(winner) {
+                const modal = document.querySelector('.modal-overlay');
+                const winnerText = modal.querySelector('.winner-text');
+                const color = winner === 'green' ? '#4CAF50' : '#ff6b6b';
+                
+                winnerText.innerHTML = `
+                    <span style="color: ${color}">
+                        ${winner.toUpperCase()} PLAYER
+                    
+                    <br>WINS! 🏆
+                `;
+                
+                modal.style.display = 'flex';
+                
+                // Add celebration effects
+                for (let i = 0; i < 20; i++) {
+                    setTimeout(createCelebrationElement, i * 100);
+                }
+            }
+
+            function closeModal() {
+                document.querySelector('.modal-overlay').style.display = 'none';
+            } 
+
+            function restartGame() {
+    window.location.href = window.location.href + '?t=' + Date.now();
+}
+
+            function checkWinner() {
+                for (let combination of winningCombinations) {
+                    const [a, b, c] = combination;
+                    const circles = document.querySelectorAll('.circle');
+                    
+                    if (circles[a].classList.contains('green-player') &&
+                        circles[b].classList.contains('green-player') &&
+                        circles[c].classList.contains('green-player')) {
+                        return 'green';
+                    }
+                    
+                    if (circles[a].classList.contains('red-player') &&
+                        circles[b].classList.contains('red-player') &&
+                        circles[c].classList.contains('red-player')) {
+                        return 'red';
+                    }
+                }
+                return null;
+            }
+
+            function endGame(winner) {
+                gameEnded = true;
+                setTimeout(() => {
+                    showWinnerModal(winner);
+                }, 100);
+            }
+
+            function updateGameState() {
+                const container = document.querySelector('.game-container');
+                container.classList.remove('green-turn', 'red-turn');
+                container.classList.add(`${currentPlayer}-turn`);
+            }
+
+            function switchPlayer() {
+                currentPlayer = currentPlayer === 'green' ? 'red' : 'green';
+                updateGameState();
+            }
+
+            // Handle stone placement
+            const stones = document.querySelectorAll('.stone');
+            stones.forEach(stone => {
+                stone.addEventListener('click', function() {
+                    if (gamePhase !== 'placing' || gameEnded) return;
+                    if ((stone.classList.contains('green-stone') && currentPlayer === 'green') ||
+                        (stone.classList.contains('red-stone') && currentPlayer === 'red')) {
+                        stones.forEach(s => s.classList.remove('selected'));
+                        stone.classList.add('selected');
+                    }
+                });
+            });
+
+            // Handle board positions
+            const circles = document.querySelectorAll('.circle');
+            circles.forEach(circle => {
+                circle.addEventListener('click', function() {
+                    if (gameEnded) return;
+
+                    if (gamePhase === 'placing') {
+                        const selectedStone = document.querySelector('.stone.selected');
+                        if (selectedStone && circle.classList.contains('empty')) {
+                            circle.classList.remove('empty');
+                            circle.classList.add(`${currentPlayer}-player`);
+                            selectedStone.remove();
+                            
+                            if (currentPlayer === 'green') {
+                                greenStonesLeft--;
+                            } else {
+                                redStonesLeft--;
+                            }
+
+                            const winner = checkWinner();
+                            if (winner) {
+                                endGame(winner);
+                                return;
+                            }
+
+                            if (greenStonesLeft === 0 && redStonesLeft === 0) {
+                                gamePhase = 'moving';
+                            }
+
+                            switchPlayer();
+                        }
+                    } else if (gamePhase === 'moving') {
+                        if (selectedCircle === null) {
+                            if (circle.classList.contains(`${currentPlayer}-player`)) {
+                                selectedCircle = circle;
+                                circle.classList.add('selected');
+                            }
+                        } else {
+                            if (circle.classList.contains('empty')) {
+                                const fromPos = parseInt(selectedCircle.dataset.position);
+                                const toPos = parseInt(circle.dataset.position);
+                                
+                                if (validMoves[fromPos].includes(toPos)) {
+                                    circle.classList.remove('empty');
+                                    circle.classList.add(`${currentPlayer}-player`);
+                                    selectedCircle.classList.remove(`${currentPlayer}-player`, 'selected');
+                                    selectedCircle.classList.add('empty');
+                                    selectedCircle = null;
+
+                                    const winner = checkWinner();
+                                    if (winner) {
+                                        endGame(winner);
+                                        return;
+                                    }
+
+                                    switchPlayer();
+                                }
+                            }
+                            if (selectedCircle) {
+                                selectedCircle.classList.remove('selected');
+                                selectedCircle = null;
+                            }
+                        }
+                    }
+                });
+            });
+
+            updateGameState();
+        });
+    </script>
+</body>
+</html>
